@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\Casperinc.OpenCleveland.DocumentParser.Bridge\Casperinc.OpenCleveland.DocumentParser.Bridge.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="automapper" Version="6.1.1" />
+  </ItemGroup>
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+  </PropertyGroup>
+</Project>
