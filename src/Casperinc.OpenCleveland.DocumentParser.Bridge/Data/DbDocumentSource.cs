@@ -12,7 +12,7 @@ namespace Casperinc.OpenCleveland.DocumentParser.Bridge.Data
     {
         private string _dbConnectionString;
 
-        public DbDocumentSource(string dbConnectionString) 
+        public DbDocumentSource(string dbConnectionString)
         {
             _dbConnectionString = dbConnectionString;
         }
@@ -25,34 +25,46 @@ namespace Casperinc.OpenCleveland.DocumentParser.Bridge.Data
         public bool DocumentExists(string documentHash)
         {
 
-            using(var dbConnection = GetConnection())
+            using (var dbConnection = GetConnection())
             {
                 var hashCheck = dbConnection.Query<bool>("select true from `Documents` where `Hash Value` = @hashValue",
-                                                new {hashValue = documentHash});
-                if(hashCheck.Count() > 0)
+                                                new { hashValue = documentHash });
+                if (hashCheck.Count() > 0)
                 {
                     dbConnection.Close();
                     return true;
                 }
                 dbConnection.Close();
             }
-            
+
             return false;
         }
 
-        public bool DocumentExistsGetGuid(DocumentDataDTO document)
+        public bool DocumentExists(DocumentDataDTO document)
         {
-            using(var dbConnection = GetConnection())
+            using (var dbConnection = GetConnection())
             {
-                var hashCheck = dbConnection.Query<Guid>("select `Unique Id GUID` from `Documents` where `Hash Value` = @hashValue",
-                                                new {hashValue = document.Hash});
-                if(hashCheck.Count() > 0)
+                dbConnection.Open();
+                try
                 {
-                    document.GuidId = hashCheck.FirstOrDefault();
+                    var hashCheck = dbConnection.Query<Guid>("select `Unique Id GUID` from `Documents` where `Hash Value` = @hashValue",
+                                                    new { hashValue = document.FullText.GetHashCode() });
+                    if (hashCheck.Count() > 0)
+                    {
+                        document.GuidId = hashCheck.FirstOrDefault();
+                        dbConnection.Close();
+                        return true;
+                    }
                     dbConnection.Close();
-                    return true;
                 }
-                dbConnection.Close();
+                catch (Exception ex)
+                {
+                    throw new Exception("Failed to determine if document existed.", ex);
+                }
+                finally
+                {
+                    dbConnection.Close();
+                }
             }
             return false;
         }
@@ -60,18 +72,29 @@ namespace Casperinc.OpenCleveland.DocumentParser.Bridge.Data
 
         public IEnumerable<DocumentDataDTO> SaveDocument(DocumentDataDTO document)
         {
-             using(var dbConnection = GetConnection())
-            {   
-                var parms = new DynamicParameters();
-                parms.Add("guid", document.GuidId, DbType.StringFixedLength, ParameterDirection.InputOutput);
-                parms.Add("hashValue", document.GuidId, DbType.StringFixedLength, ParameterDirection.Input);
-                parms.Add("fullText", document.GuidId, DbType.String, ParameterDirection.Input);
+            using (var dbConnection = GetConnection())
+            {
+                dbConnection.Open();
+                try
+                {
+                    var parms = new DynamicParameters();
+                    parms.Add("guid", document.GuidId, DbType.StringFixedLength, ParameterDirection.InputOutput);
+                    parms.Add("hashValue", document.FullText.GetHashCode(), DbType.StringFixedLength, ParameterDirection.Input);
+                    parms.Add("fullText", document.FullText, DbType.String, ParameterDirection.Input);
 
-                var test = dbConnection.Query<DocumentDataDTO>("CreateDocument", parms, commandType: CommandType.StoredProcedure);
+                    return dbConnection.Query<DocumentDataDTO>("CreateDocument", parms, commandType: CommandType.StoredProcedure);
+                }
+                catch (Exception ex)
+                {
+                    throw new Exception("Failed to save Document.", ex);
+                }
+                finally
+                {
+                    dbConnection.Close();
+                }
             }
-            throw new NotImplementedException();
         }
 
     }
-        
+
 }
