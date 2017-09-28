@@ -69,20 +69,21 @@ namespace Casperinc.OpenCleveland.DocumentParser.Bridge.Data
             return false;
         }
 
-
-        public IEnumerable<DocumentDataDTO> SaveDocument(DocumentDataDTO document)
+        public DocumentDataDTO SaveDocument(DocumentDataDTO document)
         {
             using (var dbConnection = GetConnection())
             {
-                dbConnection.Open();
                 try
                 {
+                    dbConnection.Open();
                     var parms = new DynamicParameters();
                     parms.Add("guid", document.GuidId, DbType.StringFixedLength, ParameterDirection.InputOutput);
                     parms.Add("hashValue", document.FullText.GetHashCode(), DbType.StringFixedLength, ParameterDirection.Input);
                     parms.Add("fullText", document.FullText, DbType.String, ParameterDirection.Input);
 
-                    return dbConnection.Query<DocumentDataDTO>("CreateDocument", parms, commandType: CommandType.StoredProcedure);
+                    var savedDocument = dbConnection.Query<DocumentDataDTO>("CreateDocument", parms, commandType: CommandType.StoredProcedure).FirstOrDefault();
+                    dbConnection.Close();
+                    return savedDocument;
                 }
                 catch (Exception ex)
                 {
@@ -96,5 +97,4 @@ namespace Casperinc.OpenCleveland.DocumentParser.Bridge.Data
         }
 
     }
-
 }
