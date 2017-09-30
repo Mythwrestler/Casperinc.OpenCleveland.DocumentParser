@@ -10,9 +10,9 @@
             "request": "launch",
             "preLaunchTask": "build",
             // If you have changed target frameworks, make sure to update the program path.
-            "program": "${workspaceRoot}/src/Casperinc.OpenCleveland.DocumentParser.Facade/bin/Debug/netcoreapp2.0/Casperinc.OpenCleveland.DocumentParser.Facade.dll",
+            "program": "${workspaceRoot}/src/Casperinc.OpenCleveland.DocumentParser.Facade.API/bin/Debug/netcoreapp2.0/Casperinc.OpenCleveland.DocumentParser.Facade.API.dll",
             "args": [],
-            "cwd": "${workspaceRoot}/src/Casperinc.OpenCleveland.DocumentParser.Facade",
+            "cwd": "${workspaceRoot}/src/Casperinc.OpenCleveland.DocumentParser.Facade.API",
             "stopAtEntry": false,
             "internalConsoleOptions": "openOnSessionStart",
             "launchBrowser": {

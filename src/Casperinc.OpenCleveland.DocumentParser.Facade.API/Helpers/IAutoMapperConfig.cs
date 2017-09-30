@@ -1,6 +1,6 @@
 using System;
 
-namespace Casperinc.OpenCleveland.DocumentParser.Facade.Helpers
+namespace Casperinc.OpenCleveland.DocumentParser.Facade.API.Helpers
 {
     public interface IAutoMapperConfig
     {

@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 using Casperinc.OpenCleveland.DocumentParser.Core.Repositories;
 using Microsoft.AspNetCore.Mvc;
 
-namespace Casperinc.OpenCleveland.DocumentParser.Facade.Controllers
+namespace Casperinc.OpenCleveland.DocumentParser.Facade.API.Controllers
 {
     [Route("api/documents")]
     public class ValuesController : Controller
@@ -17,6 +17,18 @@ namespace Casperinc.OpenCleveland.DocumentParser.Facade.Controllers
         public ValuesController(IDocumentRepository documentRepo)
         {
             _documentRepo = documentRepo;
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> DoStuffAsync(){
+            var paths = _documentRepo.GetObjectListForDirectory("/Users/Casper/Desktop/1996");
+            
+            //foreach (var path in paths)
+            //{
+            var document = await _documentRepo.GetDocumentFromPathAsync(paths.FirstOrDefault());
+            //}
+
+            return Ok("Ok");
         }
 
     }

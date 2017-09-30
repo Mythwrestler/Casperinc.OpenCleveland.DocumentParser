@@ -8,8 +8,12 @@ namespace Casperinc.OpenCleveland.DocumentParser.Core.Helpers
     {
         public DataDTOMapperProfile() : base("DataDTOMapperProfile")
         {
-            CreateMap<Document, DocumentDataDTO>();
-            CreateMap<DocumentDataDTO, Document>();
+            CreateMap<Document, DocumentDataDTO>()
+              .ForMember(dest => dest.GuidId, opt => opt.MapFrom(src => src.Id))
+              .ForMember(dest => dest.Hash, opt => opt.MapFrom(src => src.Hash));
+            CreateMap<DocumentDataDTO, Document>()
+              .ForMember(dest => dest.Id, opt => opt.MapFrom(src => src.GuidId))
+              .ForMember(dest => dest.Hash, opt => opt.MapFrom(src => src.Hash));
         } 
         
     }

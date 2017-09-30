@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
-namespace Casperinc.OpenCleveland.DocumentParser.Facade
+namespace Casperinc.OpenCleveland.DocumentParser.Facade.API
 {
     public class Program
     {
@@ -20,6 +20,8 @@ namespace Casperinc.OpenCleveland.DocumentParser.Facade
         public static IWebHost BuildWebHost(string[] args) =>
             WebHost.CreateDefaultBuilder(args)
                 .UseStartup<Startup>()
+                .ConfigureLogging( config => {
+                })
                 .Build();
     }
 }

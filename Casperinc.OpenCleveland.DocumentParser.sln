@@ -9,7 +9,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Casperinc.OpenCleveland.Doc
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Casperinc.OpenCleveland.DocumentParser.Core", "src\Casperinc.OpenCleveland.DocumentParser.Core\Casperinc.OpenCleveland.DocumentParser.Core.csproj", "{4FCAA95D-6C9A-4ADD-94B3-C05F926A05E5}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Casperinc.OpenCleveland.DocumentParser.Facade", "src\Casperinc.OpenCleveland.DocumentParser.Facade\Casperinc.OpenCleveland.DocumentParser.Facade.csproj", "{71A90582-E616-4664-AA66-7CBE21F2097C}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Casperinc.OpenCleveland.DocumentParser.Facade.API", "src\Casperinc.OpenCleveland.DocumentParser.Facade.API\Casperinc.OpenCleveland.DocumentParser.Facade.API.csproj", "{71A90582-E616-4664-AA66-7CBE21F2097C}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

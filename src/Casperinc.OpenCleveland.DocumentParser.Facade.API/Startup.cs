@@ -13,7 +13,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace Casperinc.OpenCleveland.DocumentParser.Facade
+namespace Casperinc.OpenCleveland.DocumentParser.Facade.API
 {
     public class Startup
     {
@@ -28,7 +28,7 @@ namespace Casperinc.OpenCleveland.DocumentParser.Facade
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddSingleton<IDocumentSource>(
-                new DbDocumentSource(Configuration["Data:ConnectionStrings:MySQL"])
+                new DbDocumentSource(Configuration["Data:ConnectionStrings:MySQL"], new LoggerFactory())
             );
             services.AddScoped<IDocumentRepository, DocumentRepository>();
 
@@ -38,6 +38,7 @@ namespace Casperinc.OpenCleveland.DocumentParser.Facade
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IHostingEnvironment env)
         {
+            
             if (env.IsDevelopment())
             {
                 app.UseDeveloperExceptionPage();
