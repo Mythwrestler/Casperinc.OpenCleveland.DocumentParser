@@ -6,11 +6,12 @@ using System.Threading;
 using System.Threading.Tasks;
 using AutoMapper;
 using Casperinc.OpenCleveland.DocumentParser.Bridge.Data;
-using Casperinc.OpenCleveland.DocumentParser.Bridge.Data.Models;
+using Casperinc.OpenCleveland.DocumentParser.Bridge.Models;
 using Casperinc.OpenCleveland.DocumentParser.Bridge.Helpers;
 using Casperinc.OpenCleveland.DocumentParser.Core.Helpers;
 using Casperinc.OpenCleveland.DocumentParser.Core.Models;
 using Microsoft.Extensions.Logging;
+using System.Text.RegularExpressions;
 
 namespace Casperinc.OpenCleveland.DocumentParser.Core.Repositories
 {
@@ -25,59 +26,39 @@ namespace Casperinc.OpenCleveland.DocumentParser.Core.Repositories
             _logger = logger;
         }
 
-        public async Task<Document> GetDocumentFromPathAsync(string path)
+        public async Task<Document> GetDocumentFromPath(string path)
         {
             var lines = GetAllLinesForText(path);
-            var fullText = String.Join("\r\n", lines);
+            var fullText = String.Join(" \n", lines);
             //var wordMaps = await GetWordMaps(fullText, lines);
             var wordMaps = new List<WordMap>();
 
-            var documentForReturn = new Document();
-
-            if(DocumentExists(fullText)){
-                var documentFromDB = new Document();
-                documentForReturn = Mapper.Map<Document>(documentFromDB);
-            } else 
-            {
-                var newDocument = new Document()
+            var documentForReturn = new Document()
                 {
                     FullText = fullText,
                     Hash = fullText.GetSHA256Hash(),
                     WordMaps = wordMaps
                 };
+            var documentFromSource = Mapper.Map<DocumentDataDTO>(documentForReturn);
 
-                var documentFromDB = _documentDb.SaveDocument(
-                        Mapper.Map<DocumentDataDTO>(new Document(){
-                            Id = Guid.NewGuid(),
-                            FullText = fullText,
-                            Hash = fullText.GetSHA256Hash(),
-                            WordMaps = wordMaps
-                            }
-                        )
-                    );
+            if(_documentDb.DocumentExists(documentFromSource))
+            {
+                documentForReturn = Mapper.Map<Document>(documentFromSource);
+            }
+            else
+            {
+                documentForReturn.Id = Guid.NewGuid();
+                documentForReturn.WordMaps = await GetWordMaps(fullText, lines);
+                var documentForSave = Mapper.Map<DocumentDataDTO>(documentForReturn);
 
-                documentForReturn = Mapper.Map<Document>(documentFromDB);
+                if(!_documentDb.SaveDocument(documentForSave))
+                {
+                    return null;
+                }
+                documentForReturn = Mapper.Map<Document>(documentForSave);
             }
 
             return documentForReturn;
-
-        }
-
-        public List<string> GetObjectListForDirectory(string path)
-        {
-            var reviewPaths = new List<string>();
-            reviewPaths.AddRange(Directory.GetFiles(path));
-            reviewPaths.AddRange(Directory.GetDirectories(path));
-
-            var paths = new List<string>();
-            foreach (var newPath in reviewPaths)
-            {
-                if (File.Exists(newPath)) paths.Add(newPath);
-
-                if (Directory.Exists(newPath)) paths.AddRange(GetObjectListForDirectory(newPath));
-            }
-
-            return paths;
 
         }
 
@@ -102,23 +83,28 @@ namespace Casperinc.OpenCleveland.DocumentParser.Core.Repositories
             var chars = new char[] {
                     ',','.','\'','\"',')','(','-'
                 };
+            var wordList = new List<string>();
+            foreach (var line in lines)
+            {
+                wordList.AddRange(
+                    Regex.Replace(
+                        Regex.Replace(line, @"[^a-zA-Z-]+", " ")
+                        , @"\s+", " ")
+                    .Split(' ')
+                );
+            }
 
-            var wordList = lines.Where(word => word.Length >= 2)
-                                .Distinct()
-                                .OrderBy(word => word);
 
-
-            // word => 
-            //     new WordMap(){
-            //             Word = new Word(){Value = word.ToLowerInvariant().Trim(chars)},
-            //             Positions = GetPostionton(word, fullText),
-            //             NeighborWords = new NeighborWords()
-            //     }
-
-            var buildMaps = wordList.Where(word => word.Length >= 2)
-                                    .Distinct()
-                                    .Select(word => Task.Run(() => BuildWordMap(word, fullText)))
-                                    .ToArray();
+            wordList = wordList
+                        .Select(word => word.Trim(chars).ToLowerInvariant())
+                        .Where(word => word.Length >= 2)
+                        .Distinct()
+                        .OrderBy(word => word)
+                        .ToList();
+            
+            var buildMaps = wordList
+                                .Select(word => Task.Run(() => BuildWordMap(word, fullText)))
+                                .ToArray();
                                 
 
             var result = await Task.WhenAll(buildMaps);
@@ -126,7 +112,9 @@ namespace Casperinc.OpenCleveland.DocumentParser.Core.Repositories
             var wordMapList = new List<WordMap>();
             wordMapList.AddRange(result);
 
-            return wordMapList.ToList();
+            return wordMapList
+                    .Where(wordMap => wordMap.Positions.Count > 0)
+                    .ToList();
         }
 
         private WordMap BuildWordMap(string word, string text)
@@ -141,14 +129,23 @@ namespace Casperinc.OpenCleveland.DocumentParser.Core.Repositories
 
         }
 
-        private bool DocumentExists(string fullText)
+        public List<string> GetObjectListForDirectory(string path)
         {
-            var checkDoc = new DocumentDataDTO(){
-                Hash = fullText.GetSHA256Hash()
-            };
-            return _documentDb.DocumentExists(checkDoc);
-        }
+            var reviewPaths = new List<string>();
+            reviewPaths.AddRange(Directory.GetFiles(path));
+            reviewPaths.AddRange(Directory.GetDirectories(path));
 
+            var paths = new List<string>();
+            foreach (var newPath in reviewPaths)
+            {
+                if (File.Exists(newPath)) paths.Add(newPath);
+
+                if (Directory.Exists(newPath)) paths.AddRange(GetObjectListForDirectory(newPath));
+            }
+
+            return paths;
+
+        }
 
     }
 

@@ -21,12 +21,15 @@ namespace Casperinc.OpenCleveland.DocumentParser.Facade.API.Controllers
 
         [HttpGet]
         public async Task<IActionResult> DoStuffAsync(){
-            var paths = _documentRepo.GetObjectListForDirectory("/Users/Casper/Desktop/1996");
+            var paths = _documentRepo.GetObjectListForDirectory("/Users/Mat/Desktop/1996");
             
-            //foreach (var path in paths)
-            //{
-            var document = await _documentRepo.GetDocumentFromPathAsync(paths.FirstOrDefault());
-            //}
+            foreach (var path in paths)
+            {
+                if(path.ToLowerInvariant().EndsWith(".txt"))
+                {
+                    var document = await _documentRepo.GetDocumentFromPath(path);
+                }
+            }
 
             return Ok("Ok");
         }

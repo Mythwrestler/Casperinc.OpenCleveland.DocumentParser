@@ -8,9 +8,9 @@ namespace Casperinc.OpenCleveland.DocumentParser.Core.Repositories
     public interface IDocumentRepository
     { 
         // Document BuildNewDocumentFromText(string fullText);
-        Task<Document> GetDocumentFromPathAsync(string path);
+        Task<Document> GetDocumentFromPath(string path);
         List<string> GetObjectListForDirectory(string path);
-        
+
     }
 
 
