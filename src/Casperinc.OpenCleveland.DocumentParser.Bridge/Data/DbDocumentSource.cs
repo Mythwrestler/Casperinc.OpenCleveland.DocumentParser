@@ -36,20 +36,20 @@ namespace Casperinc.OpenCleveland.DocumentParser.Bridge.Data
                 {
                     dbConnection.Open();
 
-                    var hashCheck = dbConnection.Query<Guid>(
-                            @"Select `Unique Id GUID` 
-                                From `Documents` 
-                               Where `Hash Value` = @hashValue",
+                    var guidFromHashValue = dbConnection.Query<Guid>(
+                            @"Select uniqueIdGuid 
+                                From Documents_TBL 
+                               Where hashValue = @hashValue",
                         new { hashValue = document.Hash }
                     ).FirstOrDefault();
 
-                    if (hashCheck != null && hashCheck != new Guid())
+                    if (guidFromHashValue != null && guidFromHashValue != new Guid())
                     {
-                        document.GuidId = hashCheck;
-                        if (WordMapsExist(dbConnection, document))
-                        {
+                        document.GuidId = guidFromHashValue;
+                        //if (WordMapsExist(dbConnection, document))
+                        //{
                             return true;
-                        }
+                        //}
                     }
 
                 }
@@ -62,6 +62,73 @@ namespace Casperinc.OpenCleveland.DocumentParser.Bridge.Data
                     dbConnection.Close();
                 }
             }
+            return false;
+        }
+
+        private bool WordMapsExist(MySqlConnection dbConnection, DocumentDataDTO newDocument)
+        {
+            try
+            {
+                var queryString =
+                    @"Select a.uniqueIdGuid as GuidId
+                            ,b.uniqueIdGuid as GuidId
+                            ,b.wordText as Text
+                            ,c.positionInDocument as Positions
+                        From WordMaps_TBL as a
+                        Join Words_TBL as b 
+                          On a.wordIdNumeric = b.uniqueIdNumeric
+                        Join WordsMapPositions_TBL as c 
+                          On a.uniqueIdGuid = c.wordMapIdNumeric   
+                       where documentIdNumeric = @documentId";   //this is wrong, it needs to point to document Guid.  also wordMapId join is incorrect.
+
+                var wordMapsFromSource = dbConnection.Query<WordMapDataDTO>(
+                    queryString,
+                    new { documentId = newDocument.GuidId }
+                ).ToList();
+
+                if (wordMapsFromSource.Count() != 0)
+                {
+                    newDocument.WordMaps = wordMapsFromSource;
+                    return true;
+                }
+                {
+                    return false;
+                }
+
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("Failed to determine if document existed.", ex);
+            }
+            finally
+            {
+                dbConnection.Close();
+            }
+
+        }
+
+        private bool WordExists(MySqlConnection dbConnection, WordDataDTO word)
+        {
+            try
+            {
+                var wordCheck = dbConnection.Query<Guid>(
+                            @"Select uniqueIdGuid
+                                From ParsedDocuments.Words_TBL
+                               Where wordText = @word",
+                               new { word = word.Text.ToLowerInvariant() }
+                        ).FirstOrDefault();
+
+                if (wordCheck != null && wordCheck != new Guid())
+                {
+                    word.GuidId = wordCheck;
+                    return true;
+                }
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Failed to save Word Positions", ex);
+            }
+
             return false;
         }
 
@@ -78,19 +145,40 @@ namespace Casperinc.OpenCleveland.DocumentParser.Bridge.Data
                 {
                     dbConnection.Open();
 
-                    var parms = new DynamicParameters();
-                    parms.Add("guid", newDocument.GuidId, DbType.StringFixedLength, ParameterDirection.InputOutput);
-                    parms.Add("hashValue", newDocument.Hash, DbType.StringFixedLength, ParameterDirection.Input);
-                    parms.Add("allText", newDocument.FullText, DbType.String, ParameterDirection.Input);
+                    // var parms = new DynamicParameters();
+                    // parms.Add("guid", newDocument.GuidId, DbType.StringFixedLength, ParameterDirection.InputOutput);
+                    // parms.Add("hashValue", newDocument.Hash, DbType.StringFixedLength, ParameterDirection.Input);
+                    // parms.Add("allText", newDocument.FullText, DbType.String, ParameterDirection.Input);
 
-                    var savedDocument = dbConnection.Query<DocumentDataDTO>("CreateDocument", parms, commandType: CommandType.StoredProcedure).FirstOrDefault();
-                    savedDocument.WordMaps = newDocument.WordMaps;
+                    // var savedDocument = dbConnection.Query<DocumentDataDTO>("CreateDocument", parms, commandType: CommandType.StoredProcedure).FirstOrDefault();
+                    // savedDocument.WordMaps = newDocument.WordMaps;
+                    var tempGuid = Guid.NewGuid();
 
-                    if (savedDocument != null)
+                    var sqlStatement =
+                        @"
+                            Insert Into ParsedDocuments.Documents_TBL
+                                   (uniqueIdGuid, hashValue, fullDocumentText)
+                            Values (@guid, @hash, @documentText)
+                        ";
+
+                    var result = dbConnection.Execute(
+                        sqlStatement,
+                        new { guid = tempGuid, hash = newDocument.Hash, documentText = newDocument.FullText }
+                    );
+
+
+                    if (result >= 0)
                     {
-                        SaveWordMaps(dbConnection, savedDocument);
-                        newDocument = savedDocument;
-                        return true;
+                        newDocument.GuidId = tempGuid;
+                        if (SaveWordMaps(dbConnection, newDocument))
+                        {
+                            return true;
+                        }
+                        else
+                        {
+                            return false;
+                        }
+
                     }
                     else
                     {
@@ -109,48 +197,6 @@ namespace Casperinc.OpenCleveland.DocumentParser.Bridge.Data
 
             }
 
-
-        }
-
-        private bool WordMapsExist(MySqlConnection dbConnection, DocumentDataDTO newDocument)
-        {
-            try
-            {
-                var queryString = 
-                    @"Select `a`.`Unique Id GUID` as `GuidId`
-                            ,`b`.`Unique Id GUID` as `GuidId`
-                            ,`b`.`Word` as `Text`
-                            ,`c`.`Position` as `Positions`
-                        From `Word Maps` as `a`
-                        Join `Words` as `b` 
-                          On `a`.`Word Id` = `b`.`Unique Id Numeric`
-                        Join `Word Map Positions` as `c` 
-                          On `a`.`Unique Id GUID` = `c`.`Word Map Id`
-                       where `Document Id` = @documentId";
-
-                var wordMapsFromSource = dbConnection.Query<WordMapDataDTO>(
-                    queryString,
-                    new { documentId = newDocument.GuidId }
-                ).ToList();
-
-                if(wordMapsFromSource.Count() != 0)
-                {
-                    newDocument.WordMaps = wordMapsFromSource;
-                    return true;
-                }
-                {
-                    return false;
-                }
-
-            }
-            catch (Exception ex)
-            {
-                throw new Exception("Failed to determine if document existed.", ex);
-            }
-            finally
-            {
-                dbConnection.Close();
-            }
 
         }
 
@@ -186,22 +232,22 @@ namespace Casperinc.OpenCleveland.DocumentParser.Bridge.Data
                     var tempGuid = Guid.NewGuid();
 
                     var wordIdInt = dbConnection.Query<Int64>(
-                        @"Select `Unique Id Numeric` 
-                            From `ParseLeg`.`Words` 
-                           Where `Unique Id GUID` = @wordGUID",
+                        @"Select uniqueIdNumeric 
+                            From ParsedDocuments.Words_TBL 
+                           Where uniqueIdGuid = @wordGUID",
                         new { wordGUID = wordMap.Word.GuidId }).FirstOrDefault();
 
                     var documentIdInt = dbConnection.Query<Int64>(
-                        @"Select `Unique Id Numeric` 
-                            From `ParseLeg`.`Documents` 
-                           Where `Unique Id GUID` = @documentGUID",
+                        @"Select uniqueIdNumeric 
+                            From ParsedDocuments.Documents_TBL 
+                           Where uniqueIdGuid = @documentGUID",
                         new { documentGUID = newDocument.GuidId }).FirstOrDefault();
 
                     if (documentIdInt != 0 && wordIdInt != 0)
                     {
                         var result = dbConnection.Execute(
-                            @"Insert into `ParseLeg`.`Word Maps`
-				                 (`Unique Id GUID`, `Document Id`, `Word Id`)
+                            @"Insert into ParsedDocuments.WordMaps_TBL
+				                 (uniqueIdGuid, documentIdNumeric, wordIdNumeric)
 			              Values (@guid, @documentId, @wordId)",
                             new
                             {
@@ -226,9 +272,9 @@ namespace Casperinc.OpenCleveland.DocumentParser.Bridge.Data
 
 
                     var wordMapIdInt = dbConnection.Query<Int64>(
-                        @"Select `Unique Id Numeric`
-                                From `ParseLeg`.`Word Maps`
-                               Where `Unique Id GUID` = @guidId",
+                        @"Select uniqueIdNumeric
+                                From ParsedDocuments.WordMaps_TBL
+                               Where uniqueIdGuid = @guidId",
                         new { guidId = wordMap.GuidId }
                     ).FirstOrDefault();
 
@@ -253,31 +299,6 @@ namespace Casperinc.OpenCleveland.DocumentParser.Bridge.Data
             return true;
         }
 
-        private bool WordExists(MySqlConnection dbConnection, WordDataDTO word)
-        {
-            try
-            {
-                var wordCheck = dbConnection.Query<Guid>(
-                            @"Select `Unique Id Guid` as `GuidId`
-                            From `ParseLeg`.`Words`
-                           Where `Word` = @word",
-                               new { word = word.Text.ToLowerInvariant() }
-                        ).FirstOrDefault();
-
-                if (wordCheck != null && wordCheck != new Guid())
-                {
-                    word.GuidId = wordCheck;
-                    return true;
-                }
-            }
-            catch (Exception ex)
-            {
-                throw new Exception($"Failed to save Word Positions", ex);
-            }
-
-            return false;
-        }
-
         private bool SaveWord(MySqlConnection dbConnection, WordDataDTO word)
         {
             try
@@ -285,9 +306,9 @@ namespace Casperinc.OpenCleveland.DocumentParser.Bridge.Data
                 if (!WordExists(dbConnection, word))
                 {
                     dbConnection.Execute(
-                        @"insert into `ParseLeg`.`Words`
-			             (`Unique Id GUID`, `Word`)
-		          Values (@guid, @word)",
+                        @"insert into ParsedDocuments.Words_TBL
+			                     (uniqueIdGuid, wordText)
+		                  Values (@guid, @word)",
                         new { guid = word.GuidId, word = word.Text }
                     );
                     if (WordExists(dbConnection, word))
@@ -314,9 +335,9 @@ namespace Casperinc.OpenCleveland.DocumentParser.Bridge.Data
                 foreach (var position in positions)
                 {
                     var result = dbConnection.Execute(
-                        @"Insert Into `ParseLeg`.`Word Map Positions`
-                                     (`Word Map Id`, `Position`)
-                              Values (@wordMapId, @wordPosition)",
+                        @"Insert Into ParsedDocuments.WordMapPositions_TBL
+                                 (wordMapIdNumeric, positionInDocument)
+                          Values (@wordMapId, @wordPosition)",
                           new { wordMapId = wordMapId, wordPosition = position }
                     );
                     if (result == 0)
